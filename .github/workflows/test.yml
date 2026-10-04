@@ -1,0 +1,128 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck notify.sh verifier/examples/deploy-compose.sh
+
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --with pytest --with "pyjwt[crypto]>=2.8" pytest verifier -q
+
+  # Real GitHub OIDC token -> action -> verifier running on the runner.
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ghcr.io/example/app@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Start verifier
+        env:
+          REPO_ID: ${{ github.repository_id }}
+          OWNER_ID: ${{ github.repository_owner_id }}
+          REF: ${{ github.ref }}
+        run: |
+          dir="$RUNNER_TEMP/verifier"
+          mkdir -p "$dir"
+          secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret"
+          printf '%s' "$secret" >"$dir/secret"
+          echo "E2E_HMAC_SECRET=$secret" >>"$GITHUB_ENV"
+          cat >"$dir/hook.sh" <<'EOF'
+          #!/usr/bin/env bash
+          cat >"$(dirname "$0")/out-$DEPLOY_APP.json"
+          exit "$1"
+          EOF
+          app() {
+            printf '[apps.%s]\ncommand = ["/bin/bash", "%s/hook.sh", "%s"]\n' "$1" "$dir" "$2"
+            if [[ "$1" == signed ]]; then
+              printf 'hmac_secret_file = "%s/secret"\n\n' "$dir"
+            else
+              printf 'audience = "http://127.0.0.1:9000"\nrepository_id = "%s"\nrepository_owner_id = "%s"\nref = "%s"\n\n' \
+                "$REPO_ID" "$OWNER_ID" "$REF"
+            fi
+          }
+          {
+            printf 'listen = "127.0.0.1:9000"\nstate_dir = "%s/state"\n\n' "$dir"
+            app ok 0; app later 75; app broken 1; app signed 0
+          } >"$dir/config.toml"
+          nohup uv run --script verifier/deploy_verifier.py --config "$dir/config.toml" >"$dir/log" 2>&1 &
+          for _ in $(seq 60); do curl -s -o /dev/null http://127.0.0.1:9000/ && exit 0; sleep 1; done
+          cat "$dir/log"; exit 1
+
+      - id: ok
+        uses: ./
+        with:
+          url: http://127.0.0.1:9000/hooks/ok
+          allow_insecure: 'true'
+          image: ${{ env.IMAGE }}
+          version: 1.2.3
+          extra: '{"note": "e2e"}'
+          timeout: 60
+
+      - id: later
+        uses: ./
+        with:
+          url: http://127.0.0.1:9000/hooks/later
+          allow_insecure: 'true'
+
+      - id: broken
+        continue-on-error: true
+        uses: ./
+        with:
+          url: http://127.0.0.1:9000/hooks/broken
+          allow_insecure: 'true'
+
+      - id: signed
+        uses: ./
+        with:
+          url: http://127.0.0.1:9000/hooks/signed
+          auth: hmac
+          hmac_secret: ${{ env.E2E_HMAC_SECRET }}
+          allow_insecure: 'true'
+
+      - id: insecure_refused
+        continue-on-error: true
+        uses: ./
+        with:
+          url: http://127.0.0.1:9000/hooks/ok
+
+      - name: Check results
+        env:
+          OK_STATUS: ${{ steps.ok.outputs.status }}
+          LATER_STATUS: ${{ steps.later.outputs.status }}
+          BROKEN_OUTCOME: ${{ steps.broken.outcome }}
+          BROKEN_CODE: ${{ steps.broken.outputs.http_code }}
+          SIGNED_STATUS: ${{ steps.signed.outputs.status }}
+          REFUSED_OUTCOME: ${{ steps.insecure_refused.outcome }}
+        run: |
+          set -x
+          [[ "$OK_STATUS" == deployed ]]
+          [[ "$LATER_STATUS" == deferred ]]
+          [[ "$BROKEN_OUTCOME" == failure && "$BROKEN_CODE" == 500 ]]
+          [[ "$SIGNED_STATUS" == deployed ]]
+          [[ "$REFUSED_OUTCOME" == failure ]]
+          out="$RUNNER_TEMP/verifier/out-ok.json"
+          jq -e --arg image "$IMAGE" --arg repo "$GITHUB_REPOSITORY" \
+            '.image == $image and .repository == $repo and .auth == "oidc" and .extra.note == "e2e"' "$out"
+
+      - name: Verifier log
+        if: always()
+        run: cat "$RUNNER_TEMP/verifier/log"

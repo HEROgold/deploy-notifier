@@ -1,0 +1,32 @@
+# /etc/systemd/system/deploy-verifier.service
+[Unit]
+Description=deploy-notifier reference verifier
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=deploy
+Group=deploy
+# Membership of the docker group is effectively root. If that is too much, drop it and
+# let the deploy command call one specific `sudo` rule instead (and remove NoNewPrivileges).
+SupplementaryGroups=docker
+ExecStart=/usr/local/bin/uv run --script /opt/deploy-notifier/verifier/deploy_verifier.py --config /etc/deploy-verifier/config.toml
+Environment=UV_CACHE_DIR=/var/lib/deploy-verifier/uv-cache
+StateDirectory=deploy-verifier
+Restart=on-failure
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# Directories your deploy commands write to (e.g. compose project dirs):
+ReadWritePaths=/srv
+
+[Install]
+WantedBy=multi-user.target

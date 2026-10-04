@@ -1,0 +1,71 @@
+name: 'deploy-notifier'
+description: 'Notify a server that a new version is ready to deploy, authenticated with GitHub OIDC or HMAC, and wait for its verdict.'
+branding:
+  icon: 'send'
+  color: 'blue'
+
+inputs:
+  url:
+    description: 'HTTPS endpoint to notify, e.g. `https://deploy.example.com/hooks/myapp`.'
+    required: true
+  auth:
+    description: '`oidc` (default, needs `permissions: id-token: write`) or `hmac`.'
+    required: false
+    default: 'oidc'
+  audience:
+    description: 'OIDC audience. Defaults to the origin of `url` (e.g. `https://deploy.example.com`).'
+    required: false
+    default: ''
+  hmac_secret:
+    description: 'Shared secret, required when `auth: hmac`. Store it as an environment secret.'
+    required: false
+    default: ''
+  image:
+    description: 'Image reference to deploy. Prefer digest-pinned refs: `ghcr.io/owner/app@sha256:…`.'
+    required: false
+    default: ''
+  version:
+    description: 'Free-form version string forwarded to the server.'
+    required: false
+    default: ''
+  extra:
+    description: 'Extra JSON object forwarded to the server under `extra`.'
+    required: false
+    default: '{}'
+  timeout:
+    description: 'Seconds to wait for the server to finish deploying.'
+    required: false
+    default: '600'
+  allow_insecure:
+    description: 'Allow plain `http://` targets. Only for local testing.'
+    required: false
+    default: 'false'
+
+outputs:
+  status:
+    description: '`deployed`, `deferred` (HTTP 202) or `failed`.'
+    value: ${{ steps.notify.outputs.status }}
+  http_code:
+    description: 'HTTP status code returned by the server (`000` if no response).'
+    value: ${{ steps.notify.outputs.http_code }}
+  response:
+    description: 'Response body, truncated to 4 KB.'
+    value: ${{ steps.notify.outputs.response }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Notify deploy target
+      id: notify
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_AUTH: ${{ inputs.auth }}
+        INPUT_AUDIENCE: ${{ inputs.audience }}
+        INPUT_HMAC_SECRET: ${{ inputs.hmac_secret }}
+        INPUT_IMAGE: ${{ inputs.image }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_EXTRA: ${{ inputs.extra }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+        INPUT_ALLOW_INSECURE: ${{ inputs.allow_insecure }}
+      run: bash "$GITHUB_ACTION_PATH/notify.sh"

@@ -1,0 +1,25 @@
+# deploy-verifier configuration. Copy to /etc/deploy-verifier/config.toml (root:deploy, 0640).
+
+listen = "127.0.0.1:9000"              # keep it on localhost; TLS is the reverse proxy's job
+state_dir = "/var/lib/deploy-verifier"  # replay + dedupe database
+max_body_bytes = 65536
+max_token_age = 600                     # seconds; reject OIDC tokens issued longer ago
+# oidc_issuer = "https://token.actions.githubusercontent.com"  # change only for GHES
+
+# Notified at https://deploy.example.com/hooks/myapp
+[apps.myapp]
+command = ["/usr/local/bin/deploy-myapp"]  # argv, no shell; gets DEPLOY_* env + JSON on stdin
+timeout = 600                               # keep <= the action's `timeout` input
+# image_pattern = '^ghcr\.io/owner/app@sha256:[0-9a-f]{64}$'  # default: any digest-pinned ref
+
+# GitHub OIDC (recommended). Find the IDs with:
+#   gh api repos/OWNER/REPO --jq '{repository_id: .id, repository_owner_id: .owner.id}'
+audience = "https://deploy.example.com"  # the notify URL's origin, or the action's `audience` input
+repository_id = "123456789"
+repository_owner_id = "1234567"
+environment = "production"               # and/or: ref = "refs/heads/main"
+
+# HMAC (fallback for callers that cannot use OIDC)
+[apps.legacy]
+command = ["/usr/local/bin/deploy-legacy"]
+hmac_secret_file = "/etc/deploy-verifier/legacy.secret"  # >= 32 bytes, e.g. `openssl rand -hex 32`
