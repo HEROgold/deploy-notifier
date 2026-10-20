@@ -1,0 +1,43 @@
+# The verifier as a container behind Traefik (Docker provider).
+#
+# It talks to the host's Docker daemon through the socket, so it can run
+# `docker compose` for the apps it deploys. That is root-equivalent: keep the
+# per-app OIDC pins (repository_id, environment/ref) strict.
+#
+# Mount every app directory at the same path as on the host, so compose
+# project names and relative paths match a manual `docker compose` run there.
+#
+#   docker compose -f compose.example.yml up -d --build
+
+services:
+  verifier:
+    build: .
+    restart: unless-stopped
+    # The host user that owns the app directories, plus the host's docker group.
+    user: "${DEPLOY_UID:-1000}:${DEPLOY_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:?set DOCKER_GID to the host docker group id (getent group docker)}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.toml:/etc/deploy-verifier/config.toml:ro
+      - state:/var/lib/deploy-verifier
+      # One line per app, same path inside as outside:
+      # - /home/me/myapp:/home/me/myapp
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK:?set PROXY_NETWORK}
+      - traefik.http.routers.deploy-verifier.rule=Host(`${DEPLOY_HOST:?set DEPLOY_HOST}`) && PathPrefix(`/hooks/`)
+      - traefik.http.routers.deploy-verifier.entrypoints=websecure
+      - traefik.http.routers.deploy-verifier.tls=true
+      - traefik.http.routers.deploy-verifier.tls.certresolver=${CERT_RESOLVER:?set CERT_RESOLVER}
+      - traefik.http.services.deploy-verifier.loadbalancer.server.port=9000
+
+volumes:
+  state:
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

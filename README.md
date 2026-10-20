@@ -131,6 +131,26 @@ deploy.example.com {
 
 With nginx, raise `proxy_read_timeout` above your deploy timeout (the default is 60 s).
 
+### In a container (behind Traefik)
+
+If your reverse proxy only routes to containers, as Traefik does with its Docker provider,
+run the verifier as a container instead: [`verifier/Dockerfile`](verifier/Dockerfile) and
+[`verifier/compose.example.yml`](verifier/compose.example.yml).
+
+```sh
+git clone https://github.com/HEROgold/deploy-notifier ~/deploy-notifier
+cd ~/deploy-notifier/verifier
+cp config.example.toml config.toml   # listen = "0.0.0.0:9000"; set the app's command
+DOCKER_GID=$(getent group docker | cut -d: -f3) PROXY_NETWORK=traefik_network   DEPLOY_HOST=deploy.example.com CERT_RESOLVER=myresolver   docker compose -f compose.example.yml up -d --build
+```
+
+- The container talks to the host's Docker daemon through `/var/run/docker.sock`. That is
+  root-equivalent, as the `docker` group is for the systemd setup.
+- Mount each app directory at the same path inside the container as on the host.
+- Deploy commands get `PATH=/bin:/usr/bin` and no `HOME`. The image installs `docker` and
+  the compose plugin under `/usr`. A command that pulls private images must set
+  `DOCKER_CONFIG` to a mounted directory with the registry login.
+
 ### Security notes
 
 - **Pin IDs, not names.** `repository_id` and `repository_owner_id` survive renames, and
