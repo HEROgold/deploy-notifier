@@ -17,6 +17,12 @@ COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr
 
 COPY deploy_verifier.py /app/deploy_verifier.py
 
+# Owned by the user the container runs as, so a new named volume mounted here
+# inherits that ownership and the verifier can write its state.
+ARG DEPLOY_UID=1000
+ARG DEPLOY_GID=1000
+RUN install -d -o "$DEPLOY_UID" -g "$DEPLOY_GID" /var/lib/deploy-verifier
+
 ENV PYTHONUNBUFFERED=1
 EXPOSE 9000
 ENTRYPOINT ["python", "/app/deploy_verifier.py"]

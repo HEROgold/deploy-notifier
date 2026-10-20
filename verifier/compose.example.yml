@@ -11,7 +11,11 @@
 
 services:
   verifier:
-    build: .
+    build:
+      context: .
+      args:
+        DEPLOY_UID: ${DEPLOY_UID:-1000}
+        DEPLOY_GID: ${DEPLOY_GID:-1000}
     restart: unless-stopped
     # The host user that owns the app directories, plus the host's docker group.
     user: "${DEPLOY_UID:-1000}:${DEPLOY_GID:-1000}"
