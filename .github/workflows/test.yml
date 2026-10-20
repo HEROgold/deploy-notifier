@@ -64,6 +64,7 @@ jobs:
             app ok 0; app later 75; app broken 1; app signed 0
           } >"$dir/config.toml"
           nohup uv run --script verifier/deploy_verifier.py --config "$dir/config.toml" >"$dir/log" 2>&1 &
+          echo "VERIFIER_PID=$!" >>"$GITHUB_ENV"
           for _ in $(seq 60); do curl -s -o /dev/null http://127.0.0.1:9000/ && exit 0; sleep 1; done
           cat "$dir/log"; exit 1
 
@@ -126,3 +127,9 @@ jobs:
       - name: Verifier log
         if: always()
         run: cat "$RUNNER_TEMP/verifier/log"
+
+      # The verifier runs under `uv run`, which holds uv's cache lock;
+      # setup-uv's post step prunes that cache and times out waiting for it.
+      - name: Stop verifier
+        if: always() && env.VERIFIER_PID != ''
+        run: kill "$VERIFIER_PID" && wait "$VERIFIER_PID" 2>/dev/null || true
