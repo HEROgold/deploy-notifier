@@ -28,7 +28,7 @@ jobs:
       id-token: write              # required for auth: oidc
     steps:
       # ... build and push ghcr.io/owner/app, exposing the digest as steps.push.outputs.digest
-      - uses: OWNER/deploy-notifier@v1
+      - uses: HEROgold/deploy-notifier@v1
         with:
           url: https://deploy.example.com/hooks/myapp
           image: ghcr.io/owner/app@${{ steps.push.outputs.digest }}
@@ -109,7 +109,7 @@ on stdin.
 
 ```sh
 sudo useradd --system --shell /usr/sbin/nologin --groups docker deploy
-sudo git clone https://github.com/OWNER/deploy-notifier /opt/deploy-notifier
+sudo git clone https://github.com/HEROgold/deploy-notifier /opt/deploy-notifier
 sudo install -d -m 0750 -g deploy /etc/deploy-verifier
 sudo install -m 0640 -g deploy /opt/deploy-notifier/verifier/config.example.toml /etc/deploy-verifier/config.toml
 sudo install -m 0755 /opt/deploy-notifier/verifier/examples/deploy-compose.sh /usr/local/bin/deploy-myapp
