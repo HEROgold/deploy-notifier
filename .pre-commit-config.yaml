@@ -1,4 +1,9 @@
 # Run with prek: docs/development.md#local-checks
+# pre-commit.ci settings: docs/development.md#pre-commitci
+ci:
+  autoupdate_schedule: weekly
+  autofix_prs: false
+
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
