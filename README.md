@@ -60,6 +60,7 @@ choices.
 ## Development
 
 ```sh
+uv run prek install                                           # gitleaks on every commit
 uv run --group verifier pytest verifier                       # verifier tests
 shellcheck notify.sh                                          # lint the action
 uv run --group docs zensical serve                            # preview the docs
