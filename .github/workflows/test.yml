@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --with pytest --with "pyjwt[crypto]>=2.8" pytest verifier -q
+      - run: uv run --locked --group verifier pytest verifier -q
 
   # Real GitHub OIDC token -> action -> verifier running on the runner.
   e2e:
