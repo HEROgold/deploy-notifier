@@ -43,6 +43,19 @@ The prek hook checks staged changes before each commit. The workflow scans the f
 history (`fetch-depth: 0`) for clones where nobody installed the hook. It needs
 `pull-requests: read`, because gitleaks-action lists a PR's commits through the API.
 
+### pre-commit.ci
+
+The [pre-commit.ci](https://pre-commit.ci) app reads the `ci:` block in
+`.pre-commit-config.yaml`. It's here only for `autoupdate`: once a week it opens a PR that
+bumps each hook's `rev:`. The [Dependabot](#dependabot) entries don't cover hook revs.
+
+`autofix_prs` is off, because no hook rewrites files yet. The check pre-commit.ci adds to
+PRs passes without scanning anything: the gitleaks hook runs with `--staged`, and nothing is
+staged in a fresh checkout. `gitleaks.yml` is the secret scan that counts.
+
+The app has to be installed for the repository at <https://pre-commit.ci>. Without it, the
+`ci:` block does nothing.
+
 ### Dependabot
 
 `.github/dependabot.yml` checks three ecosystems weekly:
