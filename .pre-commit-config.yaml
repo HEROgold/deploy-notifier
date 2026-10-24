@@ -1,5 +1,4 @@
-# Run with prek: `uv run prek install` once, then hooks run on every commit.
-# `uv run prek run --all-files` checks the whole tree.
+# Run with prek: docs/development.md#local-checks
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
