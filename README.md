@@ -15,6 +15,8 @@ say it's done. The server decides what deploying means (pull an image, `docker c
 The repo also contains a small **reference verifier** ([`verifier/`](verifier/)). You can
 run it on the server as-is or use it as the spec for your own receiver.
 
+**Documentation: <https://herogold.github.io/deploy-notifier/>**
+
 ## Usage
 
 ```yaml
@@ -39,139 +41,29 @@ jobs:
 Pass the image **by digest** (`@sha256:…`), not by tag. Tags are mutable, and the reference
 verifier rejects them by default.
 
-### Inputs
+## Docs
 
-| Input | Default | Description |
-|---|---|---|
-| `url` | *required* | Endpoint to notify. Must be `https://` unless `allow_insecure`. |
-| `auth` | `oidc` | `oidc` or `hmac`. |
-| `audience` | origin of `url` | OIDC `aud` claim the server expects. |
-| `hmac_secret` | | Required for `auth: hmac`. Use an environment secret, 32+ random bytes. |
-| `image` | | Image reference, ideally digest-pinned. |
-| `version` | | Free-form version string. |
-| `extra` | `{}` | Extra JSON object forwarded under `extra`. |
-| `timeout` | `600` | Seconds to wait for the server to finish. |
-| `allow_insecure` | `false` | Allow `http://` (local testing only). |
-
-### Outputs
-
-| Output | Description |
+| Page | Covers |
 |---|---|
-| `status` | `deployed`, `deferred` or `failed` |
-| `http_code` | Server's HTTP status (`000` if there was no response) |
-| `response` | Response body, at most 4 KB |
+| [Getting started](https://herogold.github.io/deploy-notifier/getting-started/) | A first deploy, from an empty server to a green run. |
+| [Action](https://herogold.github.io/deploy-notifier/action/) | Inputs, outputs, status and retries. |
+| [Verifier](https://herogold.github.io/deploy-notifier/verifier/) | Install, config reference, deploy commands, HMAC. |
+| [Examples](https://herogold.github.io/deploy-notifier/examples/) | systemd and Caddy, container and Traefik, a docker compose deploy command. |
+| [Protocol](https://herogold.github.io/deploy-notifier/protocol/) | The request and response contract for your own receiver. |
+| [How it works](https://herogold.github.io/deploy-notifier/how-it-works/) | One deploy step by step: auth, replay, dedupe, timeouts. |
+| [Security](https://herogold.github.io/deploy-notifier/security/) | Pinning, the docker group, input validation. |
+| [Troubleshooting](https://herogold.github.io/deploy-notifier/troubleshooting/) | Common failures and their fixes. |
 
-### Behaviour
-
-- `2xx` → `deployed`, `202` → `deferred`. Both pass. Anything else fails the step.
-- **Retries:** at most 3 attempts, and only when the request never reached the server
-  (DNS, connect or TLS-handshake failure, HTTP 502/503). A timeout or 504 is **not**
-  retried, because the deploy may still be running.
-- The server's response is printed with workflow commands disabled, so a compromised server
-  can't inject `::set-output`-style commands into your run.
-
-## Protocol
-
-This is the contract for writing your own receiver.
-
-`POST <url>` with `Content-Type: application/json`:
-
-```json
-{
-  "image": "ghcr.io/owner/app@sha256:…",  "version": "1.2.3",  "extra": {},
-  "repository": "owner/app", "repository_id": "123", "sha": "…", "ref": "refs/heads/main",
-  "run_id": "456", "run_attempt": "1", "actor": "octocat",
-  "deploy_id": "456-1-0123456789ab", "sent_at": "2026-10-04T12:00:00Z"
-}
-```
-
-`image` and `version` may be `null`. Headers:
-
-| Header | When |
-|---|---|
-| `X-Deploy-Id` | Always. `<run_id>-<run_attempt>-<sha256(url)[:12]>`. Dedupe on it. |
-| `Authorization: Bearer <jwt>` | `auth: oidc`. Verify it as a GitHub Actions OIDC token: RS256, `iss` = `https://token.actions.githubusercontent.com`, `aud`, `exp`. Then pin `repository_id`/`environment`/`ref`, reject reused `jti`, and check that the body's `repository_id`, `sha`, `run_id` and `run_attempt` match the token. |
-| `X-Timestamp`, `X-Signature-256: sha256=<hex>` | `auth: hmac`. HMAC-SHA256 over `"<timestamp>.<raw body>"`. Reject a timestamp more than 5 min off, and reject reused signatures. |
-
-The receiver responds **only when done**: `200` deployed, `202` accepted but deferred, any
-other code fails the workflow. A new credential (token or signature) is created for each
-attempt, so retries pass replay checks. The deploy id stays the same, so retries don't
-deploy twice.
-
-## Server setup (reference verifier)
-
-The verifier is one Python file run with [uv](https://docs.astral.sh/uv/). It listens on
-localhost, verifies requests and runs one command per app (argv only, never a shell). Exit
-`0` → 200, exit `75` → 202, any other exit or a timeout → 500/504. The command receives
-`DEPLOY_APP`, `DEPLOY_ID`, `DEPLOY_IMAGE`, `DEPLOY_VERSION`, `DEPLOY_REPOSITORY`,
-`DEPLOY_SHA`, `DEPLOY_REF`, `DEPLOY_ACTOR` and `DEPLOY_AUTH`, plus the full context as JSON
-on stdin.
-
-```sh
-sudo useradd --system --shell /usr/sbin/nologin --groups docker deploy
-sudo git clone https://github.com/HEROgold/deploy-notifier /opt/deploy-notifier
-sudo install -d -m 0750 -g deploy /etc/deploy-verifier
-sudo install -m 0640 -g deploy /opt/deploy-notifier/verifier/config.example.toml /etc/deploy-verifier/config.toml
-sudo install -m 0755 /opt/deploy-notifier/verifier/examples/deploy-compose.sh /usr/local/bin/deploy-myapp
-# edit config.toml and deploy-myapp, then:
-sudo cp /opt/deploy-notifier/verifier/deploy-verifier.service /etc/systemd/system/
-sudo systemctl enable --now deploy-verifier
-```
-
-Get the IDs to pin with
-`gh api repos/OWNER/REPO --jq '{repository_id: .id, repository_owner_id: .owner.id}'`.
-
-Put TLS in front of it, for example with Caddy:
-
-```
-deploy.example.com {
-    reverse_proxy /hooks/* 127.0.0.1:9000
-}
-```
-
-With nginx, raise `proxy_read_timeout` above your deploy timeout (the default is 60 s).
-
-### In a container (behind Traefik)
-
-If your reverse proxy only routes to containers, as Traefik does with its Docker provider,
-run the verifier as a container instead: [`verifier/Dockerfile`](verifier/Dockerfile) and
-[`verifier/compose.example.yml`](verifier/compose.example.yml).
-
-```sh
-git clone https://github.com/HEROgold/deploy-notifier ~/deploy-notifier
-cd ~/deploy-notifier/verifier
-cp config.example.toml config.toml   # listen = "0.0.0.0:9000"; set the app's command
-DOCKER_GID=$(getent group docker | cut -d: -f3) PROXY_NETWORK=traefik_network   DEPLOY_HOST=deploy.example.com CERT_RESOLVER=myresolver   docker compose -f compose.example.yml up -d --build
-```
-
-- The container talks to the host's Docker daemon through `/var/run/docker.sock`. That is
-  root-equivalent, as the `docker` group is for the systemd setup.
-- Mount each app directory at the same path inside the container as on the host.
-- Deploy commands get `PATH=/bin:/usr/bin` and no `HOME`. The image installs `docker` and
-  the compose plugin under `/usr`. A command that pulls private images must set
-  `DOCKER_CONFIG` to a mounted directory with the registry login.
-
-### Security notes
-
-- **Pin IDs, not names.** `repository_id` and `repository_owner_id` survive renames, and
-  someone else can't register the same name later. Pin an `environment` with required
-  reviewers or branch rules, or at least a `ref`. The verifier refuses to start without
-  one of them.
-- **`docker` group = root.** If that's too much, drop the group and give `deploy` a single
-  `sudo` rule for the deploy script.
-- The command only receives validated values. Image refs must match `image_pattern`
-  (digest-pinned by default) and versions match `[\w.+-]{1,128}`. In OIDC mode,
-  repository, sha and ref come from the signed token, not the body.
-- Failed deploys return only the exit code. Command output goes to the journal
-  (`journalctl -u deploy-verifier`).
+The sources are in [`docs/`](docs/). [DESIGN.md](DESIGN.md) records the reasoning behind the
+choices.
 
 ## Development
 
 ```sh
 uv run --with pytest --with "pyjwt[crypto]" pytest verifier   # verifier tests
 shellcheck notify.sh                                          # lint the action
+uv run --group docs zensical serve                            # preview the docs
 ```
 
 [`.github/workflows/test.yml`](.github/workflows/test.yml) also runs an end-to-end test on
-GitHub. It uses a real OIDC token, the action and a verifier running on the runner. See
-[DESIGN.md](DESIGN.md) for the reasoning behind the choices.
+GitHub. It uses a real OIDC token, the action and a verifier running on the runner.
