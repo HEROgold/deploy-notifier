@@ -60,7 +60,7 @@ choices.
 ## Development
 
 ```sh
-uv run --with pytest --with "pyjwt[crypto]" pytest verifier   # verifier tests
+uv run --group verifier pytest verifier                       # verifier tests
 shellcheck notify.sh                                          # lint the action
 uv run --group docs zensical serve                            # preview the docs
 ```

@@ -5,6 +5,12 @@ requires-python = ">=3.13"
 dependencies = []
 
 [dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
 docs = [
     "zensical>=0.0.72",
+]
+verifier = [
+    "pyjwt[crypto]>=2.8",
 ]
