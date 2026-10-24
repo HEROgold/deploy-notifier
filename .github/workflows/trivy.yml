@@ -42,6 +42,10 @@ jobs:
           sarif_file: trivy.sarif
           category: trivy-verifier-image
 
+      # Fail only on what verifier/Dockerfile controls: the Debian base and the Python
+      # packages. The docker CLI and compose plugin come prebuilt from docker:*-cli and
+      # their Go advisories are fixed upstream, so they show up in the Security tab
+      # through the SARIF step above but don't fail the job.
       - name: Fail on fixable high or critical findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -50,4 +54,5 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
+          skip-files: /usr/bin/docker,/usr/libexec/docker/cli-plugins/docker-compose
           skip-setup-trivy: true

@@ -10,7 +10,9 @@ FROM docker:29-cli AS docker-cli
 
 FROM python:3.13-slim
 
-RUN pip install --no-cache-dir "pyjwt[crypto]>=2.8"
+# pip is only needed here. Removing it drops the libraries it vendors (urllib3,
+# msgpack, ...), which Trivy would otherwise report.
+RUN pip install --no-cache-dir "pyjwt[crypto]>=2.8" && pip uninstall -y pip
 
 COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
