@@ -1,9 +1,7 @@
-# Dependabot version updates. See
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# What each entry covers: docs/development.md#dependabot
 
 version: 2
 updates:
-  # uv.lock: the verifier's pyjwt (group `verifier`), pytest and zensical.
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
@@ -12,7 +10,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  # Base images in verifier/Dockerfile.
   - package-ecosystem: "docker"
     directory: "/verifier"
     schedule:

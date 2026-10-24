@@ -35,3 +35,4 @@ your server as-is, or treat it as the spec for your own receiver.
 | [How it works](how-it-works.md) | You want to know what happens during one deploy. |
 | [Security](security.md) | You are deciding what to pin and how much access to give. |
 | [Troubleshooting](troubleshooting.md) | A deploy fails and you need to know why. |
+| [Development](development.md) | You are changing this repo, or a CI check failed. |

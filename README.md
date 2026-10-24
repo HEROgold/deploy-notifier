@@ -53,6 +53,7 @@ verifier rejects them by default.
 | [How it works](https://herogold.github.io/deploy-notifier/how-it-works/) | One deploy step by step: auth, replay, dedupe, timeouts. |
 | [Security](https://herogold.github.io/deploy-notifier/security/) | Pinning, the docker group, input validation. |
 | [Troubleshooting](https://herogold.github.io/deploy-notifier/troubleshooting/) | Common failures and their fixes. |
+| [Development](https://herogold.github.io/deploy-notifier/development/) | Local checks, dependency groups, and what each CI workflow checks. |
 
 The sources are in [`docs/`](docs/). [DESIGN.md](DESIGN.md) records the reasoning behind the
 choices.
@@ -67,4 +68,5 @@ uv run --group docs zensical serve                            # preview the docs
 ```
 
 [`.github/workflows/test.yml`](.github/workflows/test.yml) also runs an end-to-end test on
-GitHub. It uses a real OIDC token, the action and a verifier running on the runner.
+GitHub. It uses a real OIDC token, the action and a verifier running on the runner. The
+[Development](docs/development.md) page explains each CI check.
