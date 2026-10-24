@@ -1,0 +1,14 @@
+# Only here for the docs toolchain. The action is shell and the verifier is a
+# single uv script (verifier/deploy_verifier.py), so nothing gets packaged.
+[project]
+name = "deploy-notifier"
+version = "0"
+requires-python = ">=3.13"
+
+[dependency-groups]
+docs = [
+  "zensical>=0.0.72",
+]
+
+[tool.uv]
+package = false
