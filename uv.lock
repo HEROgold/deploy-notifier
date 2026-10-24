@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "deploy-notifier"
-version = "0"
+version = "0.1.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
