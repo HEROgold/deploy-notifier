@@ -1,0 +1,53 @@
+name: trivy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - verifier/**
+      - .github/workflows/trivy.yml
+  # New advisories land without code changes.
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # upload results to the Security tab
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the verifier image
+        run: docker build -t deploy-verifier:scan verifier
+
+      # trivy-action's tags were hijacked in 2026; pin the commit.
+      - name: Scan for the Security tab
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: deploy-verifier:scan
+          format: sarif
+          output: trivy.sarif
+          ignore-unfixed: true
+
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy.sarif') != ''
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-verifier-image
+
+      - name: Fail on fixable high or critical findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: deploy-verifier:scan
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          skip-setup-trivy: true
