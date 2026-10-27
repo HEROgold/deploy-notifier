@@ -11,13 +11,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: shellcheck notify.sh verifier/examples/deploy-compose.sh
 
   verifier:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - run: uv run --locked --group verifier pytest verifier -q
 
@@ -30,7 +30,7 @@ jobs:
     env:
       IMAGE: ghcr.io/example/app@sha256:0000000000000000000000000000000000000000000000000000000000000000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
 
       - name: Start verifier
