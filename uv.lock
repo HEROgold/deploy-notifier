@@ -190,7 +190,7 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
 ]
 docs = [{ name = "zensical", specifier = ">=0.0.72" }]
-verifier = [{ name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" }]
+verifier = [{ name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.1" }]
 
 [[package]]
 name = "iniconfig"
