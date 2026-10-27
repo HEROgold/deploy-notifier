@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv run --locked --group verifier pytest verifier -q
 
   # Real GitHub OIDC token -> action -> verifier running on the runner.
@@ -31,7 +31,7 @@ jobs:
       IMAGE: ghcr.io/example/app@sha256:0000000000000000000000000000000000000000000000000000000000000000
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
 
       - name: Start verifier
         env:
