@@ -13,5 +13,5 @@ docs = [
     "zensical>=0.0.72",
 ]
 verifier = [
-    "pyjwt[crypto]>=2.8",
+    "pyjwt[crypto]>=2.15.1",
 ]
