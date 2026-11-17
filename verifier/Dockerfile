@@ -8,7 +8,7 @@
 
 FROM docker:29-cli AS docker-cli
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 # Why pip is removed: docs/development.md#trivy
 RUN pip install --no-cache-dir "pyjwt[crypto]>=2.8" && pip uninstall -y pip
